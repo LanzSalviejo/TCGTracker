@@ -10,6 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 class MainActivity : AppCompatActivity() {
 
@@ -30,13 +31,13 @@ class MainActivity : AppCompatActivity() {
 
         rvCards.layoutManager = LinearLayoutManager(this)
         adapter = CardAdapter(emptyList()) { selectedCard ->
-            // Launch Activity 2 with card information
             val intent = Intent(this, CardDetailActivity::class.java).apply {
                 putExtra("CARD_ID", selectedCard.id)
                 putExtra("CARD_NAME", selectedCard.name)
                 putExtra("CARD_CODE", selectedCard.publicCode ?: "N/A")
                 putExtra("PRINTING_ID", selectedCard.defaultPrintingId ?: "")
                 putExtra("IMAGE_URL", selectedCard.getImageUrl())
+                putExtra("EMBEDDED_PRICE", selectedCard.embeddedUsdPrice ?: -1.0)
             }
             startActivity(intent)
         }
@@ -52,7 +53,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnGoToWatchlist.setOnClickListener {
-            //startActivity(Intent(this, WatchlistActivity::class.java))
+            Toast.makeText(this, "Watchlist coming soon", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -60,12 +61,21 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val api = RiftApiService.create()
-                val response = api.searchCards(query)
-                val cardList = response.results ?: emptyList()
+                val rawResponse = api.searchCardsRaw(query)
+                val cardList = RiftApiService.parseSearchResponse(rawResponse)
+
                 if (cardList.isEmpty()) {
                     Toast.makeText(this@MainActivity, "No cards found", Toast.LENGTH_SHORT).show()
                 }
                 adapter.updateData(cardList)
+            } catch (e: HttpException) {
+                if (e.code() == 404) {
+                    // OpenRift returns HTTP 404 when a search query matches 0 cards
+                    adapter.updateData(emptyList())
+                    Toast.makeText(this@MainActivity, "No cards found for '$query'", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@MainActivity, "Server error: HTTP ${e.code()}", Toast.LENGTH_LONG).show()
+                }
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, "Search error: ${e.message}", Toast.LENGTH_LONG).show()
             }

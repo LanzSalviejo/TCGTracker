@@ -38,19 +38,15 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
 
-    // 1. Retrofit (For web API calls)
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
 
-    // 2. Coil (For loading card images into ImageViews)
     implementation("io.coil-kt:coil:2.7.0")
 
-    // 3. Room Database (Updated for Gradle 9 / AGP 9)
     implementation("androidx.room:room-runtime:2.8.5")
     implementation("androidx.room:room-ktx:2.8.5")
     kapt("androidx.room:room-compiler:2.8.5")
 
-    // 4. Coroutines Lifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 
     testImplementation(libs.junit)

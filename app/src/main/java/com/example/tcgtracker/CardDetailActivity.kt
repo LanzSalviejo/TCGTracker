@@ -35,11 +35,15 @@ class CardDetailActivity : AppCompatActivity() {
         ivImage.load(imageUrl)
 
         // Fetch live TCGplayer market price
-        if (printingId.isNotEmpty()) {
+        val embeddedPrice = intent.getDoubleExtra("EMBEDDED_PRICE", -1.0)
+        if (embeddedPrice >= 0.0) {
+            usdMarketPrice = embeddedPrice
+            tvUsd.text = "TCG Market: $${String.format("%.2f", usdMarketPrice)} USD"
+        } else if (printingId.isNotEmpty()) {
             lifecycleScope.launch {
                 try {
-                    val priceResponse = RiftApiService.create().getCardPrice(printingId)
-                    usdMarketPrice = priceResponse.tcgplayer?.market ?: 0.0
+                    val rawPrice = RiftApiService.create().getCardPriceRaw(printingId)
+                    usdMarketPrice = RiftApiService.extractUsdPrice(rawPrice) ?: 0.0
                     tvUsd.text = "TCG Market: $${String.format("%.2f", usdMarketPrice)} USD"
                 } catch (e: Exception) {
                     tvUsd.text = "Market Price: Not Available"
