@@ -26,12 +26,30 @@ data class RiftCard(
 
 interface RiftApiService {
     @GET("api/v1/search")
-    suspend fun searchCardsRaw(@Query("q") query: String): JsonElement
-
+    suspend fun searchCards(
+        @Query("q") query: String,
+        @Query("unique") unique: String = "prints"
+    ): JsonElement
     @GET("api/v1/prices/{printingId}")
     suspend fun getCardPriceRaw(@Path("printingId") printingId: String): JsonElement
 
     companion object {
+        fun getVersionLabel(publicCode: String): String {
+            val match = Regex("""(\d+)(\*?)\s*/\s*(\d+)""").find(publicCode)
+            if (match != null) {
+                val number = match.groupValues[1].toIntOrNull() ?: 0
+                val star = match.groupValues[2]
+                val setTotal = match.groupValues[3].toIntOrNull() ?: Int.MAX_VALUE
+
+                return when {
+                    star == "*" -> "Signature"
+                    number > setTotal -> "Overnumbered"
+                    else -> "Standard"
+                }
+            }
+            return "Standard"
+        }
+
         fun create(): RiftApiService {
             val client = OkHttpClient.Builder()
                 .addInterceptor { chain ->
@@ -114,7 +132,7 @@ interface RiftApiService {
         fun extractUsdPrice(element: JsonElement?): Double? {
             if (element == null || element.isJsonNull) return null
             Log.d("RiftAPI", "Price JSON: $element")
-            return findTcgPriceRecursive(element)
+            return findTcgPriceRecursive(element)?.div(100.0)
         }
 
         private fun findTcgPriceRecursive(element: JsonElement?): Double? {

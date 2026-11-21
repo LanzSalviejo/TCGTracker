@@ -25,6 +25,15 @@
             android:layout_marginTop="12dp" />
 
         <TextView
+            android:id="@+id/tvDetailCardVersion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#616161"
+            android:layout_marginTop="4dp" />
+
+        <TextView
             android:id="@+id/tvDetailUsdPrice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -36,22 +45,47 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="USD to CAD Exchange Rate:"
+            android:text="USD to CAD Exchange Rate (Live / Editable):"
             android:layout_marginTop="16dp" />
 
-        <!-- User Input 2: Exchange Rate -->
-        <EditText
-            android:id="@+id/etExchangeRate"
+        <!-- User Input 2: Live Auto-Filled Exchange Rate + Manual Refresh -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="1.38"
-            android:inputType="numberDecimal" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <EditText
+                android:id="@+id/etExchangeRate"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Fetching live rate..."
+                android:inputType="numberDecimal" />
+
+            <Button
+                android:id="@+id/btnRefreshRate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Refresh" />
+        </LinearLayout>
+
+        <!-- Shows whether rate is Live, Cached, or Offline Cache + date -->
+        <TextView
+            android:id="@+id/tvFxStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Fetching live USD/CAD rate..."
+            android:textSize="12sp"
+            android:textColor="#616161"
+            android:layout_marginTop="2dp" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Quantity to Save:"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="12dp" />
 
         <!-- User Input 3: Quantity Owned -->
         <EditText
@@ -85,6 +119,13 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="Save to Watchlist" />
+
+        <Button
+            android:id="@+id/btnViewTcgPlayerSales"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="View Last Sold History on TCGplayer" />
 
     </LinearLayout>
 </ScrollView>

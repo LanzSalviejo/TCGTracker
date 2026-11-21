@@ -1,5 +1,6 @@
 package com.example.tcgtracker
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -26,8 +27,18 @@ class CardAdapter(
 
     override fun onBindViewHolder(holder: CardViewHolder, position: Int) {
         val card = cards[position]
+        val code = card.publicCode.orEmpty()
+        val versionLabel = RiftApiService.getVersionLabel(code)
+
         holder.tvName.text = card.name
-        holder.tvCode.text = card.publicCode ?: "N/A"
+        holder.tvCode.text = if (code.isNotBlank()) "$code • $versionLabel" else "N/A"
+
+        val badgeColor = when (versionLabel) {
+            "Signature" -> Color.parseColor("#B8860B")    // Gold
+            "Overnumbered" -> Color.parseColor("#6A1B9A") // Purple
+            else -> Color.parseColor("#616161")           // Gray
+        }
+        holder.tvCode.setTextColor(badgeColor)
 
         // Load image using Coil
         holder.ivThumbnail.load(card.getImageUrl())

@@ -61,7 +61,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val api = RiftApiService.create()
-                val rawResponse = api.searchCardsRaw(query)
+                val rawResponse = api.searchCards(query)
                 val cardList = RiftApiService.parseSearchResponse(rawResponse)
 
                 if (cardList.isEmpty()) {

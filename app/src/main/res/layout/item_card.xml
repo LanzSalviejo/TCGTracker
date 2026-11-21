@@ -35,6 +35,15 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/tvCardVersion"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="RAD-149/167 • Standard"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#5E35B1" />
+
+            <TextView
                 android:id="@+id/tvCardCode"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
