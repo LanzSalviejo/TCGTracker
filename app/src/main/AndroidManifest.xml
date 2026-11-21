@@ -26,9 +26,8 @@
 
         <activity android:name=".CardDetailActivity" />
 
-        <activity android:name=".WatchlistActivity" />
-
-        <activity android:name=".PortfolioSummaryActivity" />
+        <activity android:name=".WatchlistActivity"
+            android:exported="false" />
 
     </application>
 </manifest>

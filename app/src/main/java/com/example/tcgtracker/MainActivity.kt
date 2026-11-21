@@ -16,7 +16,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var etSearch: EditText
     private lateinit var btnSearch: Button
-    private lateinit var btnGoToWatchlist: Button
     private lateinit var rvCards: RecyclerView
     private lateinit var adapter: CardAdapter
 
@@ -26,7 +25,6 @@ class MainActivity : AppCompatActivity() {
 
         etSearch = findViewById(R.id.etSearchQuery)
         btnSearch = findViewById(R.id.btnSearch)
-        btnGoToWatchlist = findViewById(R.id.btnGoToWatchlist)
         rvCards = findViewById(R.id.rvCards)
 
         rvCards.layoutManager = LinearLayoutManager(this)
@@ -52,8 +50,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        btnGoToWatchlist.setOnClickListener {
-            Toast.makeText(this, "Watchlist coming soon", Toast.LENGTH_SHORT).show()
+        findViewById<Button>(R.id.btnOpenWatchlist).setOnClickListener {
+            startActivity(Intent(this, WatchlistActivity::class.java))
         }
     }
 

@@ -22,6 +22,8 @@ interface CardDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCard(card: SavedCard)
 
+    @Update
+    suspend fun updateCard(card: SavedCard)
     @Delete
     suspend fun deleteCard(card: SavedCard)
 }

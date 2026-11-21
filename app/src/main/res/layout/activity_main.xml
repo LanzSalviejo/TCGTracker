@@ -33,18 +33,18 @@
             android:text="Search" />
     </LinearLayout>
 
-    <Button
-        android:id="@+id/btnGoToWatchlist"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="View My Saved Collection" />
-
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvCards"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:layout_marginTop="12dp" />
+
+    <Button
+        android:id="@+id/btnOpenWatchlist"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="View Watchlist" />
 
 </LinearLayout>
