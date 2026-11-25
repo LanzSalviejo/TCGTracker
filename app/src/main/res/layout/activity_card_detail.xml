@@ -2,6 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     android:padding="16dp">
 
     <LinearLayout
@@ -68,7 +69,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="Refresh" />
+                android:text="Refresh"
+                android:backgroundTint="#2196F3"
+                />
         </LinearLayout>
 
         <!-- Shows whether rate is Live, Cached, or Offline Cache + date -->
@@ -100,7 +103,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="Calculate CAD Price" />
+            android:text="Calculate CAD Price"
+            android:backgroundTint="#2196F3"
+            />
 
         <!-- Computation Output -->
         <TextView
@@ -118,14 +123,18 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Save to Watchlist" />
+            android:text="Save to Watchlist"
+            android:backgroundTint="#2196F3"
+            />
 
         <Button
             android:id="@+id/btnViewTcgPlayerSales"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="View Last Sold History on TCGplayer" />
+            android:text="View Last Sold History on TCGplayer"
+            android:backgroundTint="#2196F3"
+            />
 
     </LinearLayout>
 </ScrollView>

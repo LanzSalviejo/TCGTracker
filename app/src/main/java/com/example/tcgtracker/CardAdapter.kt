@@ -35,7 +35,7 @@ class CardAdapter(
 
         val badgeColor = when (versionLabel) {
             "Signature" -> Color.parseColor("#B8860B")    // Gold
-            "Overnumbered" -> Color.parseColor("#6A1B9A") // Purple
+            "Overnumbered" -> Color.parseColor("#C084FC") // Purple
             else -> Color.parseColor("#616161")           // Gray
         }
         holder.tvCode.setTextColor(badgeColor)

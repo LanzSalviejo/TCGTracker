@@ -125,7 +125,21 @@ interface RiftApiService {
                 )
             }
 
-            return results
+            val uniqueCards = linkedMapOf<String, RiftCard>()
+
+            for (card in results) {
+                val key = "${card.name}|${card.publicCode}".lowercase()
+                val existing = uniqueCards[key]
+
+                if (existing == null) {
+                    uniqueCards[key] = card
+                } else if (existing.imageId.isNullOrEmpty() && !card.imageId.isNullOrEmpty()) {
+                    // Swap out the blank entry for the one that has card art
+                    uniqueCards[key] = card
+                }
+            }
+
+            return uniqueCards.values.toList()
         }
 
         // Extracts TCGplayer USD price from /api/v1/prices/{printingId}
