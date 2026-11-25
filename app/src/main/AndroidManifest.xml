@@ -29,5 +29,8 @@
         <activity android:name=".WatchlistActivity"
             android:exported="false" />
 
+        <activity android:name=".TradeCalculatorActivity"
+            android:exported="false" />
+
     </application>
 </manifest>

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.View
+import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -30,6 +31,7 @@ class WatchlistActivity : AppCompatActivity() {
 
     private var currentFxRate: Double = 1.40
     private var fxSourceLabel: String = "Cached"
+    private var currentTotalCad: Double = 0.0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,6 +43,12 @@ class WatchlistActivity : AppCompatActivity() {
         tvTotalItemCount = findViewById(R.id.tvTotalItemCount)
         tvTotalCad = findViewById(R.id.tvWatchlistTotalCad)
         tvTotalMarketRef = findViewById(R.id.tvWatchlistTotalMarketRef)
+
+        findViewById<Button>(R.id.btnOpenTradeCalc).setOnClickListener {
+            val intent = Intent(this, TradeCalculatorActivity::class.java)
+            intent.putExtra("WATCHLIST_TOTAL_CAD", currentTotalCad)
+            startActivity(intent)
+        }
 
         adapter = WatchlistAdapter(
             cards = emptyList(),
@@ -89,6 +97,7 @@ class WatchlistActivity : AppCompatActivity() {
         adapter.updateData(savedCards, currentFxRate)
 
         if (savedCards.isEmpty()) {
+            currentTotalCad = 0.0
             rvWatchlist.visibility = View.GONE
             tvEmpty.visibility = View.VISIBLE
             tvTotalItemCount.text = "0 cards"
@@ -101,11 +110,11 @@ class WatchlistActivity : AppCompatActivity() {
         tvEmpty.visibility = View.GONE
 
         val totalUnits = savedCards.sumOf { it.quantity }
-        val totalCad = savedCards.sumOf { it.cadPrice * it.quantity }
+        currentTotalCad = savedCards.sumOf { it.cadPrice * it.quantity }
         val totalMarketUsd = savedCards.sumOf { it.usdPrice * it.quantity }
 
         tvTotalItemCount.text = "${savedCards.size} unique • $totalUnits total"
-        tvTotalCad.text = String.format(Locale.US, "$%.2f CAD", totalCad)
+        tvTotalCad.text = String.format(Locale.US, "$%.2f CAD", currentTotalCad)
         tvTotalMarketRef.text = String.format(
             Locale.US,
             "TCG Market Ref: $%.2f USD",

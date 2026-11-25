@@ -100,6 +100,14 @@
                 android:text="TCG Market Ref: $0.00 USD"
                 android:textSize="12sp"
                 android:textColor="#616161" />
+
+            <Button
+                android:id="@+id/btnOpenTradeCalc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:backgroundTint="#2196F3"
+                android:text="Open Trade Calculator" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
