@@ -14,10 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.util.Locale
 
 class WatchlistActivity : AppCompatActivity() {
 
@@ -27,45 +24,56 @@ class WatchlistActivity : AppCompatActivity() {
     private lateinit var tvTotalItemCount: TextView
     private lateinit var tvTotalCad: TextView
     private lateinit var tvTotalMarketRef: TextView
+    private lateinit var btnOpenTradeCalc: Button
     private lateinit var adapter: WatchlistAdapter
 
     private var currentFxRate: Double = 1.40
-    private var fxSourceLabel: String = "Cached"
     private var currentTotalCad: Double = 0.0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_watchlist)
 
+        setupViews()
+        setupRecyclerView()
+        setupListeners()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        loadWatchlist()
+    }
+
+    private fun setupViews() {
         rvWatchlist = findViewById(R.id.rvWatchlist)
         tvEmpty = findViewById(R.id.tvEmptyWatchlist)
         tvFxInfo = findViewById(R.id.tvWatchlistFxInfo)
         tvTotalItemCount = findViewById(R.id.tvTotalItemCount)
         tvTotalCad = findViewById(R.id.tvWatchlistTotalCad)
         tvTotalMarketRef = findViewById(R.id.tvWatchlistTotalMarketRef)
+        btnOpenTradeCalc = findViewById(R.id.btnOpenTradeCalc)
+    }
 
-        findViewById<Button>(R.id.btnOpenTradeCalc).setOnClickListener {
-            val intent = Intent(this, TradeCalculatorActivity::class.java)
-            intent.putExtra("WATCHLIST_TOTAL_CAD", currentTotalCad)
-            startActivity(intent)
-        }
-
+    private fun setupRecyclerView() {
         adapter = WatchlistAdapter(
             cards = emptyList(),
             liveFxRate = currentFxRate,
-            onCardClick = { savedCard -> openCardDetail(savedCard) },
-            onEditPriceClick = { savedCard -> showEditPriceDialog(savedCard) },
-            onQuantityChange = { savedCard, newQty -> updateCardQuantity(savedCard, newQty) },
-            onDeleteClick = { savedCard -> confirmDelete(savedCard) }
+            onCardClick = { openCardDetail(it) },
+            onEditPriceClick = { showEditPriceDialog(it) },
+            onQuantityChange = { card, newQty -> updateCardQuantity(card, newQty) },
+            onDeleteClick = { confirmDelete(it) }
         )
-
         rvWatchlist.layoutManager = LinearLayoutManager(this)
         rvWatchlist.adapter = adapter
     }
 
-    override fun onResume() {
-        super.onResume()
-        loadWatchlist()
+    private fun setupListeners() {
+        btnOpenTradeCalc.setOnClickListener {
+            val intent = Intent(this, TradeCalculatorActivity::class.java).apply {
+                putExtra(IntentKeys.WATCHLIST_TOTAL_CAD, currentTotalCad)
+            }
+            startActivity(intent)
+        }
     }
 
     private fun loadWatchlist() {
@@ -75,20 +83,10 @@ class WatchlistActivity : AppCompatActivity() {
                 forceRefresh = false
             )
             currentFxRate = fxResult.rate
-            fxSourceLabel = fxResult.sourceLabel
+            tvFxInfo.text = FormatUtils.formatFxStatus(fxResult)
 
-            tvFxInfo.text = String.format(
-                Locale.US,
-                "1 USD = %.4f CAD (%s • %s)",
-                fxResult.rate,
-                fxResult.sourceLabel,
-                fxResult.rateDate
-            )
-
-            val savedCards = withContext(Dispatchers.IO) {
-                AppDatabase.getDatabase(applicationContext).cardDao().getAllCards()
-            }
-
+            // Room suspend functions automatically run off the main thread
+            val savedCards = AppDatabase.getDatabase(applicationContext).cardDao().getAllCards()
             renderWatchlist(savedCards)
         }
     }
@@ -101,8 +99,8 @@ class WatchlistActivity : AppCompatActivity() {
             rvWatchlist.visibility = View.GONE
             tvEmpty.visibility = View.VISIBLE
             tvTotalItemCount.text = "0 cards"
-            tvTotalCad.text = "$0.00 CAD"
-            tvTotalMarketRef.text = "TCG Market Ref: $0.00 USD"
+            tvTotalCad.text = FormatUtils.formatCad(0.0)
+            tvTotalMarketRef.text = "TCG Market Ref: ${FormatUtils.formatUsd(0.0)}"
             return
         }
 
@@ -114,12 +112,8 @@ class WatchlistActivity : AppCompatActivity() {
         val totalMarketUsd = savedCards.sumOf { it.usdPrice * it.quantity }
 
         tvTotalItemCount.text = "${savedCards.size} unique • $totalUnits total"
-        tvTotalCad.text = String.format(Locale.US, "$%.2f CAD", currentTotalCad)
-        tvTotalMarketRef.text = String.format(
-            Locale.US,
-            "TCG Market Ref: $%.2f USD",
-            totalMarketUsd
-        )
+        tvTotalCad.text = FormatUtils.formatCad(currentTotalCad)
+        tvTotalMarketRef.text = "TCG Market Ref: ${FormatUtils.formatUsd(totalMarketUsd)}"
     }
 
     private fun showEditPriceDialog(card: SavedCard) {
@@ -132,12 +126,7 @@ class WatchlistActivity : AppCompatActivity() {
 
         val tvHint = TextView(this).apply {
             text = if (card.usdPrice > 0.0) {
-                String.format(
-                    Locale.US,
-                    "TCG Market: $%.2f USD (≈ $%.2f CAD)\nEnter custom unit price (CAD):",
-                    card.usdPrice,
-                    marketCad
-                )
+                "TCG Market: ${FormatUtils.formatUsd(card.usdPrice)} (≈ ${FormatUtils.formatCad(marketCad)}) Enter custom unit price (CAD):"
             } else {
                 "Enter custom unit price (CAD):"
             }
@@ -146,7 +135,7 @@ class WatchlistActivity : AppCompatActivity() {
 
         val etPrice = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setText(String.format(Locale.US, "%.2f", card.cadPrice))
+            setText(FormatUtils.formatDecimal(card.cadPrice))
             setSelection(text.length)
         }
 
@@ -176,15 +165,12 @@ class WatchlistActivity : AppCompatActivity() {
     }
 
     private fun updateCardPrice(card: SavedCard, newUnitCad: Double) {
-        val updatedCard = card.copy(cadPrice = newUnitCad)
-
         lifecycleScope.launch {
-            withContext(Dispatchers.IO) {
-                AppDatabase.getDatabase(applicationContext).cardDao().updateCard(updatedCard)
-            }
+            val updatedCard = card.copy(cadPrice = newUnitCad)
+            AppDatabase.getDatabase(applicationContext).cardDao().updateCard(updatedCard)
             Toast.makeText(
                 this@WatchlistActivity,
-                String.format(Locale.US, "Updated %s to $%.2f CAD", card.name, newUnitCad),
+                "Updated ${card.name} to ${FormatUtils.formatCad(newUnitCad)}",
                 Toast.LENGTH_SHORT
             ).show()
             loadWatchlist()
@@ -192,13 +178,9 @@ class WatchlistActivity : AppCompatActivity() {
     }
 
     private fun updateCardQuantity(card: SavedCard, newQuantity: Int) {
-        // Keep the user's current/adjusted cadPrice intact when changing quantity
-        val updatedCard = card.copy(quantity = newQuantity)
-
         lifecycleScope.launch {
-            withContext(Dispatchers.IO) {
-                AppDatabase.getDatabase(applicationContext).cardDao().updateCard(updatedCard)
-            }
+            val updatedCard = card.copy(quantity = newQuantity)
+            AppDatabase.getDatabase(applicationContext).cardDao().updateCard(updatedCard)
             loadWatchlist()
         }
     }
@@ -209,9 +191,7 @@ class WatchlistActivity : AppCompatActivity() {
             .setMessage("Remove ${card.name} (${card.publicCode}) from your watchlist?")
             .setPositiveButton("Remove") { _, _ ->
                 lifecycleScope.launch {
-                    withContext(Dispatchers.IO) {
-                        AppDatabase.getDatabase(applicationContext).cardDao().deleteCard(card)
-                    }
+                    AppDatabase.getDatabase(applicationContext).cardDao().deleteCard(card)
                     Toast.makeText(this@WatchlistActivity, "Removed ${card.name}", Toast.LENGTH_SHORT).show()
                     loadWatchlist()
                 }
@@ -222,13 +202,13 @@ class WatchlistActivity : AppCompatActivity() {
 
     private fun openCardDetail(card: SavedCard) {
         val intent = Intent(this, CardDetailActivity::class.java).apply {
-            putExtra("CARD_ID", card.id)
-            putExtra("CARD_NAME", card.name)
-            putExtra("CARD_CODE", card.publicCode)
-            putExtra("PRINTING_ID", card.id)
-            putExtra("IMAGE_URL", card.imageUrl)
+            putExtra(IntentKeys.CARD_ID, card.id)
+            putExtra(IntentKeys.CARD_NAME, card.name)
+            putExtra(IntentKeys.CARD_CODE, card.publicCode)
+            putExtra(IntentKeys.PRINTING_ID, card.id)
+            putExtra(IntentKeys.IMAGE_URL, card.imageUrl)
             if (card.usdPrice > 0.0) {
-                putExtra("EMBEDDED_PRICE", card.usdPrice)
+                putExtra(IntentKeys.EMBEDDED_PRICE, card.usdPrice)
             }
         }
         startActivity(intent)

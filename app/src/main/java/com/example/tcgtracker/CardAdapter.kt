@@ -1,6 +1,5 @@
 package com.example.tcgtracker
 
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -32,16 +31,15 @@ class CardAdapter(
 
         holder.tvName.text = card.name
         holder.tvCode.text = if (code.isNotBlank()) "$code • $versionLabel" else "N/A"
+        holder.tvCode.setTextColor(FormatUtils.getVersionBadgeColor(versionLabel))
 
-        val badgeColor = when (versionLabel) {
-            "Signature" -> Color.parseColor("#B8860B")    // Gold
-            "Overnumbered" -> Color.parseColor("#C084FC") // Purple
-            else -> Color.parseColor("#616161")           // Gray
+        // Load card art with fallback so missing scans never leave recycled or broken thumbnails
+        val imageUrl = card.getImageUrl().ifEmpty { null }
+        holder.ivThumbnail.load(imageUrl) {
+            crossfade(true)
+            fallback(android.R.drawable.ic_menu_gallery)
+            error(android.R.drawable.ic_menu_gallery)
         }
-        holder.tvCode.setTextColor(badgeColor)
-
-        // Load image using Coil
-        holder.ivThumbnail.load(card.getImageUrl())
 
         holder.itemView.setOnClickListener { onItemClick(card) }
     }

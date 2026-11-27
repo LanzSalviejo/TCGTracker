@@ -7,9 +7,15 @@ import kotlinx.coroutines.withContext
 data class ExchangeRateResult(
     val rate: Double,
     val rateDate: String,
-    val sourceLabel: String // "Live", "Cached", or "Fallback"
+    val sourceLabel: String // "Live", "Cached", "Offline Cache", or "Fallback"
 )
 
+/**
+ * Provides the USD -> CAD exchange rate using a 3-step strategy:
+ * 1. Return the cached rate from SharedPreferences if it is less than 15 minutes old.
+ * 2. Otherwise fetch the live rate from the Frankfurter API and save it locally.
+ * 3. If offline, fall back to the last saved rate (or 1.40 if never fetched).
+ */
 object ExchangeRateRepository {
 
     private const val PREFS_NAME = "fx_rate_prefs"

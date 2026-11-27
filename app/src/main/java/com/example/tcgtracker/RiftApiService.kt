@@ -1,6 +1,5 @@
 package com.example.tcgtracker
 
-import android.util.Log
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import okhttp3.OkHttpClient
@@ -24,33 +23,27 @@ data class RiftCard(
     }
 }
 
+/**
+ * Retrofit client and JSON parser for the OpenRift Riftbound card and pricing API.
+ */
 interface RiftApiService {
+
     @GET("api/v1/search")
     suspend fun searchCards(
         @Query("q") query: String,
         @Query("unique") unique: String = "prints"
     ): JsonElement
+
     @GET("api/v1/prices/{printingId}")
     suspend fun getCardPriceRaw(@Path("printingId") printingId: String): JsonElement
 
     companion object {
-        fun getVersionLabel(publicCode: String): String {
-            val match = Regex("""(\d+)(\*?)\s*/\s*(\d+)""").find(publicCode)
-            if (match != null) {
-                val number = match.groupValues[1].toIntOrNull() ?: 0
-                val star = match.groupValues[2]
-                val setTotal = match.groupValues[3].toIntOrNull() ?: Int.MAX_VALUE
+        private const val BASE_URL = "https://openrift.app/"
+        private val CODE_PATTERN = Regex("""(\d+)(\*?)\s*/\s*(\d+)""")
+        private val PRICE_KEYS = listOf("market", "price", "usd", "normal", "foil", "low", "value")
 
-                return when {
-                    star == "*" -> "Signature"
-                    number > setTotal -> "Overnumbered"
-                    else -> "Standard"
-                }
-            }
-            return "Standard"
-        }
-
-        fun create(): RiftApiService {
+        // Single reusable Retrofit instance (avoids recreating OkHttpClient on every search)
+        val api: RiftApiService by lazy {
             val client = OkHttpClient.Builder()
                 .addInterceptor { chain ->
                     val request = chain.request().newBuilder()
@@ -60,149 +53,149 @@ interface RiftApiService {
                 }
                 .build()
 
-            return Retrofit.Builder()
-                .baseUrl("https://openrift.app/")
+            Retrofit.Builder()
+                .baseUrl(BASE_URL)
                 .client(client)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(RiftApiService::class.java)
         }
 
-        // Parses OpenRift's "printings" dictionary and "images" array
+        // Identifies whether a card code is Standard, Overnumbered (number > set total)
+        fun getVersionLabel(publicCode: String): String {
+            val match = CODE_PATTERN.find(publicCode) ?: return "Standard"
+            val cardNumber = match.groupValues[1].toIntOrNull() ?: 0
+            val hasStar = match.groupValues[2] == "*"
+            val setTotal = match.groupValues[3].toIntOrNull() ?: Int.MAX_VALUE
+
+            return when {
+                hasStar -> "Signature"
+                cardNumber > setTotal -> "Overnumbered"
+                else -> "Standard"
+            }
+        }
+
+        /**
+         * Reads OpenRift's "printings" map into a clean, deduplicated list of RiftCard items.
+         */
         fun parseSearchResponse(root: JsonElement): List<RiftCard> {
-            Log.d("RiftAPI", "Search JSON: $root")
             if (!root.isJsonObject) return emptyList()
-
             val rootObj = root.asJsonObject
-            if (!rootObj.has("printings") || !rootObj.get("printings").isJsonObject) {
-                return emptyList()
-            }
 
-            val printingsObj = rootObj.getAsJsonObject("printings")
-            val cardsObj = if (rootObj.has("cards") && rootObj.get("cards").isJsonObject) {
-                rootObj.getAsJsonObject("cards")
-            } else null
+            val printingsObj = rootObj.getObjectOrNull("printings") ?: return emptyList()
+            val cardsObj = rootObj.getObjectOrNull("cards")
 
-            val results = mutableListOf<RiftCard>()
-
-            // Loop through each printing UUID in the "printings" object
-            for ((printingId, printingElement) in printingsObj.entrySet()) {
-                if (!printingElement.isJsonObject) continue
-                val pObj = printingElement.asJsonObject
-
-                // 1. Extract imageId from images[0].imageId
-                var imageId: String? = null
-                if (pObj.has("images") && pObj.get("images").isJsonArray) {
-                    val imagesArray = pObj.getAsJsonArray("images")
-                    if (imagesArray.size() > 0 && imagesArray.get(0).isJsonObject) {
-                        imageId = imagesArray.get(0).asJsonObject.getString("imageId")
-                    }
+            val parsedCards = printingsObj.entrySet().mapNotNull { (printingId, element) ->
+                if (element.isJsonObject) {
+                    parseSinglePrinting(printingId, element.asJsonObject, cardsObj)
+                } else {
+                    null
                 }
-
-                // 2. Extract card name from "printedName" (or fallback to "cards" map)
-                val cardId = pObj.getString("cardId")
-                val fallbackName = if (cardId != null && cardsObj != null && cardsObj.has(cardId)) {
-                    cardsObj.getAsJsonObject(cardId)?.getString("name")
-                } else null
-
-                val name = pObj.getString("printedName")
-                    ?: fallbackName
-                    ?: "Unknown Card"
-
-                // 3. Extract card set/number code
-                val publicCode = pObj.getString("publicCode")
-                    ?: pObj.getString("shortCode")
-                    ?: "N/A"
-
-                results.add(
-                    RiftCard(
-                        id = printingId,
-                        name = name,
-                        publicCode = publicCode,
-                        defaultPrintingId = printingId,
-                        imageId = imageId
-                    )
-                )
             }
 
-            val uniqueCards = linkedMapOf<String, RiftCard>()
+            return deduplicateCards(parsedCards)
+        }
 
-            for (card in results) {
+        private fun parseSinglePrinting(
+            printingId: String,
+            printingObj: JsonObject,
+            cardsObj: JsonObject?
+        ): RiftCard {
+            // Grab the first image ID from the printing's "images" array if available
+            val imageId = printingObj.get("images")
+                ?.takeIf { it.isJsonArray && it.asJsonArray.size() > 0 }
+                ?.asJsonArray?.get(0)
+                ?.takeIf { it.isJsonObject }
+                ?.asJsonObject?.getStringOrNull("imageId")
+
+            // Prefer "printedName"; fall back to the matching entry in "cards"
+            val cardId = printingObj.getStringOrNull("cardId")
+            val fallbackName = cardId?.let { cardsObj?.getObjectOrNull(it)?.getStringOrNull("name") }
+            val name = printingObj.getStringOrNull("printedName") ?: fallbackName ?: "Unknown Card"
+
+            val publicCode = printingObj.getStringOrNull("publicCode")
+                ?: printingObj.getStringOrNull("shortCode")
+                ?: "N/A"
+
+            return RiftCard(
+                id = printingId,
+                name = name,
+                publicCode = publicCode,
+                defaultPrintingId = printingId,
+                imageId = imageId
+            )
+        }
+
+        /**
+         * Removes duplicate printings that share the same name and code,
+         * keeping whichever copy actually has a card image.
+         */
+        private fun deduplicateCards(cards: List<RiftCard>): List<RiftCard> {
+            val uniqueMap = linkedMapOf<String, RiftCard>()
+            for (card in cards) {
                 val key = "${card.name}|${card.publicCode}".lowercase()
-                val existing = uniqueCards[key]
+                val existing = uniqueMap[key]
 
-                if (existing == null) {
-                    uniqueCards[key] = card
-                } else if (existing.imageId.isNullOrEmpty() && !card.imageId.isNullOrEmpty()) {
-                    // Swap out the blank entry for the one that has card art
-                    uniqueCards[key] = card
+                if (existing == null || (existing.imageId.isNullOrEmpty() && !card.imageId.isNullOrEmpty())) {
+                    uniqueMap[key] = card
                 }
             }
-
-            return uniqueCards.values.toList()
+            return uniqueMap.values.toList()
         }
 
-        // Extracts TCGplayer USD price from /api/v1/prices/{printingId}
+        /**
+         * Extracts the TCGplayer market price from /api/v1/prices/{printingId}.
+         * OpenRift stores prices in cents, so the result is divided by 100.0 to get USD.
+         */
         fun extractUsdPrice(element: JsonElement?): Double? {
-            if (element == null || element.isJsonNull) return null
-            Log.d("RiftAPI", "Price JSON: $element")
-            return findTcgPriceRecursive(element)?.div(100.0)
+            val priceInCents = findTcgPriceInCents(element) ?: return null
+            return priceInCents / 100.0
         }
 
-        private fun findTcgPriceRecursive(element: JsonElement?): Double? {
-            if (element == null || element.isJsonNull) return null
+        private fun findTcgPriceInCents(element: JsonElement?): Double? {
+            if (element == null || !element.isJsonObject) return null
+            val obj = element.asJsonObject
 
-            if (element.isJsonPrimitive) {
-                val prim = element.asJsonPrimitive
-                if (prim.isNumber) return prim.asDouble
-                if (prim.isString) return prim.asString.toDoubleOrNull()
-                return null
+            // 1. If this object has a "tcgplayer" block, read its price value directly
+            if (obj.has("tcgplayer")) {
+                readFirstPriceNumber(obj.get("tcgplayer"))?.let { return it }
             }
 
-            if (element.isJsonObject) {
-                val obj = element.asJsonObject
-
-                // Check for a "tcgplayer" key first
-                if (obj.has("tcgplayer") && !obj.get("tcgplayer").isJsonNull) {
-                    val price = extractFirstDouble(obj.get("tcgplayer"))
-                    if (price != null) return price
-                }
-
-                // Search nested objects (skip "links" and "history" so we only get current price)
-                for ((key, value) in obj.entrySet()) {
-                    if (key != "links" && key != "history" && value.isJsonObject) {
-                        val nested = findTcgPriceRecursive(value)
-                        if (nested != null) return nested
-                    }
+            // 2. Otherwise check nested wrapper objects (skipping "links" and "history")
+            for ((key, value) in obj.entrySet()) {
+                if (key != "links" && key != "history" && value.isJsonObject) {
+                    findTcgPriceInCents(value)?.let { return it }
                 }
             }
             return null
         }
 
-        private fun extractFirstDouble(element: JsonElement?): Double? {
+        private fun readFirstPriceNumber(element: JsonElement?): Double? {
             if (element == null || element.isJsonNull) return null
             if (element.isJsonPrimitive) {
-                val prim = element.asJsonPrimitive
-                if (prim.isNumber) return prim.asDouble
-                if (prim.isString) return prim.asString.toDoubleOrNull()
+                return element.asString.toDoubleOrNull()
             }
             if (element.isJsonObject) {
                 val obj = element.asJsonObject
-                for (k in listOf("market", "price", "usd", "normal", "foil", "low", "value")) {
-                    obj.getDouble(k)?.let { return it }
+                for (key in PRICE_KEYS) {
+                    obj.getDoubleOrNull(key)?.let { return it }
                 }
-                for ((_, v) in obj.entrySet()) {
-                    extractFirstDouble(v)?.let { return it }
+                for ((_, value) in obj.entrySet()) {
+                    readFirstPriceNumber(value)?.let { return it }
                 }
             }
             return null
         }
 
-        private fun JsonObject.getString(key: String): String? {
+        private fun JsonObject.getObjectOrNull(key: String): JsonObject? {
+            return if (has(key) && get(key).isJsonObject) getAsJsonObject(key) else null
+        }
+
+        private fun JsonObject.getStringOrNull(key: String): String? {
             return if (has(key) && get(key).isJsonPrimitive) get(key).asString else null
         }
 
-        private fun JsonObject.getDouble(key: String): Double? {
+        private fun JsonObject.getDoubleOrNull(key: String): Double? {
             return if (has(key) && get(key).isJsonPrimitive) get(key).asString.toDoubleOrNull() else null
         }
     }

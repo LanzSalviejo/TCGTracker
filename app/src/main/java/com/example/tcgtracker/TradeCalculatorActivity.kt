@@ -7,7 +7,6 @@ import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
-import java.util.Locale
 import kotlin.math.abs
 
 class TradeCalculatorActivity : AppCompatActivity() {
@@ -23,26 +22,34 @@ class TradeCalculatorActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_trade_calculator)
 
+        setupViews()
+        prefillWatchlistTotal()
+        setupListeners()
+        updateCalculations()
+    }
+
+    private fun setupViews() {
         etMarketValueCad = findViewById(R.id.etMarketValueCad)
         etTradePercent = findViewById(R.id.etTradePercent)
         etYourCardsCad = findViewById(R.id.etYourCardsCad)
         tvTradeOfferCad = findViewById(R.id.tvTradeOfferCad)
         tvMarginCad = findViewById(R.id.tvMarginCad)
         tvSettlementResult = findViewById(R.id.tvSettlementResult)
+    }
 
-        // If launched from WatchlistActivity, auto-fill the watchlist total
-        val incomingTotalCad = intent.getDoubleExtra("WATCHLIST_TOTAL_CAD", 0.0)
+    private fun prefillWatchlistTotal() {
+        val incomingTotalCad = intent.getDoubleExtra(IntentKeys.WATCHLIST_TOTAL_CAD, 0.0)
         if (incomingTotalCad > 0.0) {
-            etMarketValueCad.setText(String.format(Locale.CANADA, "%.2f", incomingTotalCad))
+            etMarketValueCad.setText(FormatUtils.formatDecimal(incomingTotalCad))
         }
+    }
 
-        // Preset percentage buttons
+    private fun setupListeners() {
         findViewById<Button>(R.id.btnPct70).setOnClickListener { setPercentage(70) }
         findViewById<Button>(R.id.btnPct75).setOnClickListener { setPercentage(75) }
         findViewById<Button>(R.id.btnPct80).setOnClickListener { setPercentage(80) }
         findViewById<Button>(R.id.btnPct85).setOnClickListener { setPercentage(85) }
 
-        // Recalculate automatically whenever any input changes
         etMarketValueCad.doAfterTextChanged { updateCalculations() }
         etTradePercent.doAfterTextChanged { updateCalculations() }
         etYourCardsCad.doAfterTextChanged { updateCalculations() }
@@ -54,12 +61,7 @@ class TradeCalculatorActivity : AppCompatActivity() {
             updateCalculations()
         }
 
-        findViewById<Button>(R.id.btnBackFromTrade).setOnClickListener {
-            finish()
-        }
-
-        // Run once on startup (handles pre-filled watchlist total)
-        updateCalculations()
+        findViewById<Button>(R.id.btnBackFromTrade).setOnClickListener { finish() }
     }
 
     private fun setPercentage(percent: Int) {
@@ -76,16 +78,8 @@ class TradeCalculatorActivity : AppCompatActivity() {
         val tradeOffer = marketValue * (percent / 100.0)
         val margin = marketValue - tradeOffer
 
-        tvTradeOfferCad.text = String.format(
-            Locale.CANADA,
-            "Offer / Trade Credit: $%.2f CAD",
-            tradeOffer
-        )
-        tvMarginCad.text = String.format(
-            Locale.CANADA,
-            "Spread / Margin: $%.2f CAD",
-            margin
-        )
+        tvTradeOfferCad.text = "Offer / Trade Credit: ${FormatUtils.formatCad(tradeOffer)}"
+        tvMarginCad.text = "Spread / Margin: ${FormatUtils.formatCad(margin)}"
 
         if (marketValue <= 0.0 && yourCardsValue <= 0.0) {
             tvSettlementResult.text = "Enter a market value to calculate"
@@ -95,11 +89,7 @@ class TradeCalculatorActivity : AppCompatActivity() {
 
         // Mode 1: Straight Cash Buyout (Your Cards left blank)
         if (yourCardsValue <= 0.0) {
-            tvSettlementResult.text = String.format(
-                Locale.CANADA,
-                "Cash Buyout Payout: $%.2f CAD",
-                tradeOffer
-            )
+            tvSettlementResult.text = "Cash Buyout Payout: ${FormatUtils.formatCad(tradeOffer)}"
             tvSettlementResult.setTextColor(Color.parseColor("#10B981"))
             return
         }
@@ -108,19 +98,11 @@ class TradeCalculatorActivity : AppCompatActivity() {
         val difference = yourCardsValue - tradeOffer
         when {
             difference > 0.005 -> {
-                tvSettlementResult.text = String.format(
-                    Locale.CANADA,
-                    "Customer Pays You: $%.2f CAD",
-                    difference
-                )
+                tvSettlementResult.text = "Customer Pays You: ${FormatUtils.formatCad(difference)}"
                 tvSettlementResult.setTextColor(Color.parseColor("#10B981"))
             }
             difference < -0.005 -> {
-                tvSettlementResult.text = String.format(
-                    Locale.CANADA,
-                    "You Pay Customer: $%.2f CAD",
-                    abs(difference)
-                )
+                tvSettlementResult.text = "You Pay Customer: ${FormatUtils.formatCad(abs(difference))}"
                 tvSettlementResult.setTextColor(Color.parseColor("#F59E0B"))
             }
             else -> {

@@ -1,6 +1,5 @@
 package com.example.tcgtracker
 
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,7 +8,6 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
-import java.util.Locale
 import kotlin.math.abs
 
 class WatchlistAdapter(
@@ -46,17 +44,11 @@ class WatchlistAdapter(
 
         holder.tvName.text = card.name
         holder.tvCode.text = if (card.publicCode.isNotBlank()) {
-            "${card.publicCode} •$versionLabel"
+            "${card.publicCode} • $versionLabel"
         } else {
             versionLabel
         }
-
-        val badgeColor = when (versionLabel) {
-            "Signature" -> Color.parseColor("#B8860B")
-            "Overnumbered" -> Color.parseColor("#6A1B9A")
-            else -> Color.parseColor("#616161")
-        }
-        holder.tvCode.setTextColor(badgeColor)
+        holder.tvCode.setTextColor(FormatUtils.getVersionBadgeColor(versionLabel))
 
         val marketCad = ExchangeRateRepository.convertUsdToCad(card.usdPrice, liveFxRate)
         val unitCad = card.cadPrice
@@ -64,20 +56,19 @@ class WatchlistAdapter(
         val isCustomPrice = card.usdPrice > 0.0 && abs(unitCad - marketCad) > 0.02
 
         holder.tvPrice.text = if (isCustomPrice) {
-            String.format(Locale.US, "Unit: \$%.2f CAD (Custom)", unitCad)
+            "Unit: ${FormatUtils.formatCad(unitCad)} (Custom)"
         } else {
-            String.format(Locale.US, "Unit: $%.2f CAD ($%.2f USD)", unitCad, card.usdPrice)
+            "Unit: ${FormatUtils.formatCad(unitCad)} (${FormatUtils.formatUsd(card.usdPrice)})"
         }
 
-        holder.tvSubtotal.text = String.format(
-            Locale.US,
-            "Subtotal (×%d): \$%.2f CAD",
-            card.quantity,
-            subtotalCad
-        )
+        holder.tvSubtotal.text = "Subtotal (×${card.quantity}): ${FormatUtils.formatCad(subtotalCad)}"
         holder.tvQty.text = card.quantity.toString()
 
-        holder.ivThumb.load(card.imageUrl)
+        holder.ivThumb.load(card.imageUrl.ifEmpty { null }) {
+            crossfade(true)
+            fallback(android.R.drawable.ic_menu_gallery)
+            error(android.R.drawable.ic_menu_gallery)
+        }
 
         holder.itemView.setOnClickListener { onCardClick(card) }
         holder.btnEditPrice.setOnClickListener { onEditPriceClick(card) }

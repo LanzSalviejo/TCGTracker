@@ -16,6 +16,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var etSearch: EditText
     private lateinit var btnSearch: Button
+    private lateinit var btnOpenWatchlist: Button
     private lateinit var rvCards: RecyclerView
     private lateinit var adapter: CardAdapter
 
@@ -23,24 +24,27 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        setupViews()
+        setupRecyclerView()
+        setupListeners()
+    }
+
+    private fun setupViews() {
         etSearch = findViewById(R.id.etSearchQuery)
         btnSearch = findViewById(R.id.btnSearch)
+        btnOpenWatchlist = findViewById(R.id.btnOpenWatchlist)
         rvCards = findViewById(R.id.rvCards)
+    }
 
-        rvCards.layoutManager = LinearLayoutManager(this)
+    private fun setupRecyclerView() {
         adapter = CardAdapter(emptyList()) { selectedCard ->
-            val intent = Intent(this, CardDetailActivity::class.java).apply {
-                putExtra("CARD_ID", selectedCard.id)
-                putExtra("CARD_NAME", selectedCard.name)
-                putExtra("CARD_CODE", selectedCard.publicCode ?: "N/A")
-                putExtra("PRINTING_ID", selectedCard.defaultPrintingId ?: "")
-                putExtra("IMAGE_URL", selectedCard.getImageUrl())
-                putExtra("EMBEDDED_PRICE", selectedCard.embeddedUsdPrice ?: -1.0)
-            }
-            startActivity(intent)
+            openCardDetail(selectedCard)
         }
+        rvCards.layoutManager = LinearLayoutManager(this)
         rvCards.adapter = adapter
+    }
 
+    private fun setupListeners() {
         btnSearch.setOnClickListener {
             val query = etSearch.text.toString().trim()
             if (query.isNotEmpty()) {
@@ -50,16 +54,27 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        findViewById<Button>(R.id.btnOpenWatchlist).setOnClickListener {
+        btnOpenWatchlist.setOnClickListener {
             startActivity(Intent(this, WatchlistActivity::class.java))
         }
+    }
+
+    private fun openCardDetail(card: RiftCard) {
+        val intent = Intent(this, CardDetailActivity::class.java).apply {
+            putExtra(IntentKeys.CARD_ID, card.id)
+            putExtra(IntentKeys.CARD_NAME, card.name)
+            putExtra(IntentKeys.CARD_CODE, card.publicCode ?: "N/A")
+            putExtra(IntentKeys.PRINTING_ID, card.defaultPrintingId ?: "")
+            putExtra(IntentKeys.IMAGE_URL, card.getImageUrl())
+            putExtra(IntentKeys.EMBEDDED_PRICE, card.embeddedUsdPrice ?: -1.0)
+        }
+        startActivity(intent)
     }
 
     private fun performSearch(query: String) {
         lifecycleScope.launch {
             try {
-                val api = RiftApiService.create()
-                val rawResponse = api.searchCards(query)
+                val rawResponse = RiftApiService.api.searchCards(query)
                 val cardList = RiftApiService.parseSearchResponse(rawResponse)
 
                 if (cardList.isEmpty()) {
